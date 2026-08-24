@@ -1,0 +1,344 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  FREE
+  PREMIUM
+  INSTITUTIONAL
+  ADMIN
+}
+
+enum SentimentLabel {
+  BULLISH
+  BEARISH
+  NEUTRAL
+}
+
+model User {
+  id                   String    @id @default(cuid())
+  name                 String?
+  email                String    @unique
+  emailVerified        DateTime?
+  image                String?
+  passwordHash         String? // For traditional credentials login
+  googleId             String?   @unique
+  provider             String?
+  mobileNumber         String?
+  mobileVerified       Boolean   @default(false)
+  mobileOtpHash        String?
+  mobileOtpExpiresAt   DateTime?
+  mobileOtpAttempts    Int       @default(0)
+  mobileOtpResendCount Int       @default(0)
+  role                 UserRole  @default(FREE)
+
+  // Relations
+  accounts            Account[]
+  sessions            Session[]
+  preference          Preference?
+  courses             UserCourse[]
+  auditLogs           AuditLog[]
+  aiRequestLogs       AIRequestLog[]
+  passwordResetTokens PasswordResetToken[]
+  loginHistories      LoginHistory[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model LoginAttempt {
+  id           String    @id @default(cuid())
+  email        String
+  ipAddress    String
+  attempts     Int       @default(0)
+  blockedUntil DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([email, ipAddress])
+  @@index([email, ipAddress])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model LoginHistory {
+  id            String   @id @default(cuid())
+  userId        String
+  ipAddress     String?
+  userAgent     String?
+  browser       String?
+  operatingSystem String?
+  location      String?
+  loggedAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, loggedAt])
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+}
+
+model Preference {
+  userId       String  @id
+  emailAlerts  Boolean @default(true)
+  inAppAlerts  Boolean @default(true)
+  weeklyDigest Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UserCourse {
+  id        String  @id @default(cuid())
+  userId    String
+  courseId  String
+  progress  Float   @default(0.0) // 0.0 to 100.0
+  completed Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+}
+
+model StockTicker {
+  symbol   String @id // e.g. "AAPL", "MSFT"
+  name     String
+  sector   String
+  industry String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  articles ArticleTicker[]
+}
+
+model Article {
+  id          String   @id @default(cuid())
+  title       String
+  content     String   @db.Text
+  url         String   @unique
+  publishedAt DateTime
+  sourceName  String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tickers   ArticleTicker[]
+  entities  Entity[]
+  sentiment SentimentScore?
+}
+
+model ArticleTicker {
+  articleId String
+  symbol    String
+
+  article Article     @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  ticker  StockTicker @relation(fields: [symbol], references: [symbol], onDelete: Cascade)
+
+  @@id([articleId, symbol])
+}
+
+model Entity {
+  id        String @id @default(cuid())
+  articleId String
+  name      String // Entity name (e.g. "Nvidia")
+  type      String // Entity type (e.g. "Company", "Person", "Product")
+
+  createdAt DateTime @default(now())
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+}
+
+model SentimentScore {
+  id                String         @id @default(cuid())
+  articleId         String         @unique
+  polarityScore     Float          // e.g. -1.0 to 1.0
+  label             SentimentLabel
+  confidence        Float          // e.g. 0.0 to 1.0
+  
+  summary           String         @default("") @db.Text
+  supportingFactors String[]
+  explanation       String         @default("") @db.Text
+  
+  calculatedAt      DateTime       @default(now())
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+}
+
+model Report {
+  id     String  @id @default(cuid())
+  title  String
+  sector String?
+  s3Url  String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String  @id @default(cuid())
+  userId    String?
+  action    String // e.g., "USER_SIGN_IN", "PREFERENCE_UPDATE"
+  details   String? @db.Text
+  ipAddress String?
+
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+model AIRequestLog {
+  id               String  @id @default(cuid())
+  userId           String?
+  model            String // e.g., "claude-3-5-sonnet", "gpt-4o"
+  promptTokens     Int
+  completionTokens Int
+  latencyMs        Int
+  cost             Float // Calculated cost of the request
+
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+model MarketSnapshot {
+  id            String   @id @default(cuid())
+  symbol        String   // "NIFTY50" | "SENSEX" | "BANKNIFTY" | "INDIAVIX"
+  price         Float
+  change        Float
+  changePercent Float
+  timestamp     DateTime @default(now())
+
+  @@index([symbol, timestamp(sort: Desc)])
+}
+
+model SectorSnapshot {
+  id              String   @id @default(cuid())
+  sectorName      String
+  changePercent   Float
+  volume          Float
+  topGainerSymbol String
+  topGainerChange Float
+  topLoserSymbol  String
+  topLoserChange  Float
+  timestamp       DateTime @default(now())
+
+  @@index([sectorName, timestamp(sort: Desc)])
+}
+
+model InstitutionalActivity {
+  id          String   @id @default(cuid())
+  date        DateTime @unique // Day of action (midnight time string)
+  fiiBuy      Float    // In INR Crores
+  fiiSell     Float
+  fiiNet      Float
+  diiBuy      Float
+  diiSell     Float
+  diiNet      Float
+  combinedNet Float
+  timestamp   DateTime @default(now())
+
+  @@index([date(sort: Desc)])
+}
+
+model MarketMover {
+  id            String   @id @default(cuid())
+  symbol        String
+  name          String
+  price         Float
+  change        Float
+  changePercent Float
+  volume        BigInt
+  isGainer      Boolean  // True = Gainer, False = Loser
+  timestamp     DateTime @default(now())
+
+  @@index([timestamp(sort: Desc), isGainer])
+}
+
+model NseStock {
+  id            String   @id @default(cuid())
+  symbol        String   @unique
+  name          String
+  instrumentKey String?  @unique
+  exchange      String   @default("NSE")
+  sector        String   @default("General Equities")
+  lastPrice     Float    @default(0)
+  indices       String[] @default(["niftyTotalMarket"])
+  isIPO         Boolean  @default(false)
+  isin          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([symbol])
+  @@index([instrumentKey])
+}
+

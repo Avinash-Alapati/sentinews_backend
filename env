@@ -1,0 +1,42 @@
+# =====================================
+# Database
+# =====================================
+DATABASE_URL="postgresql://neondb_owner:npg_oNH7R0YbyAic@ep-shy-hat-ay8rfsj9.c-5.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+
+# =====================================
+# Authentication
+# =====================================
+NEXTAUTH_SECRET="your_secret"
+NEXTAUTH_URL="http://localhost:3002"
+
+# =====================================
+# Market Data
+# =====================================
+MARKET_PROVIDER="upstox"
+
+FINNHUB_API_KEY="d991kghr01qugfv1cvjgd991kghr01qugfv1cvk0"
+ALPHAVANTAGE_API_KEY="11OHAW5EJTEZEBOX"
+TWELVEDATA_API_KEY="a34098392ad14a0e89000e2b442bba4a"
+
+UPSTOX_API_KEY="8d4b7101-e5fe-4725-9598-11efb616ed1d"
+UPSTOX_API_SECRET="lupw6h6qhu"
+UPSTOX_REDIRECT_URI="http://localhost:3001/api/auth/callback/upstox"
+UPSTOX_ACCESS_TOKEN=""
+
+# =====================================
+# News APIs
+# =====================================
+NEWSAPI_API_KEY="7476a45f1a5b446b9b63492e91e9660d"
+GNEWS_API_KEY="829dfb4848e2ccd73160bb0612574966"
+
+# =====================================
+# AI Models
+# =====================================
+OPENAI_API_KEY=""
+GEMINI_API_KEY=""
+GROQ_API_KEY=""
+
+# =====================================
+# Cache
+# =====================================
+CACHE_TTL=300
